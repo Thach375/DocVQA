@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 from tqdm import tqdm
 from scipy.ndimage import rotate as scipy_rotate
 
-from ocr.layout_analyzer import DocumentLayoutAnalyzer
+from .layout_analyzer import DocumentLayoutAnalyzer
 
 
 class PaddleOCRProcessor:
