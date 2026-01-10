@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 from src.ocr.ocr_processor import PaddleOCRProcessor
-from src.Preprocessing.constant import * 
+from src.utils.constant import * 
 
 def sample_layouts(sample_image, ocr_processor):
     
