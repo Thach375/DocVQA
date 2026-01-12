@@ -1,0 +1,743 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "description": "Rule-based QA templates for DocVQA local regions",
+    "total_templates": 12,
+    "categories": ["form", "table", "textblock"]
+  },
+  "templates": [
+    {
+      "id": "FORM_001",
+      "category": "form",
+      "name": "Simple Key-Value Extraction",
+      "description": "Extract value from key-value pair in forms",
+      "question_patterns": [
+        "What is the {key_name}?",
+        "What's the {key_name}?",
+        "{key_name}?"
+      ],
+      "application_conditions": {
+        "layout_type": "key_value_region",
+        "min_confidence": 0.7,
+        "pattern_match": "(?i)(what is|what's|value of)\\s+(the\\s+)?([\\w\\s]+)\\?",
+        "required_structure": {
+          "has_key": true,
+          "has_value": true,
+          "spatial_relation": "horizontal_or_vertical"
+        }
+      },
+      "extraction_method": {
+        "type": "span",
+        "steps": [
+          "1. Extract key phrase from question (capture group 3)",
+          "2. Find matching key in layout with fuzzy matching (threshold=0.85)",
+          "3. Locate associated value using spatial proximity",
+          "4. Return value text span"
+        ],
+        "confidence_calculation": "key_match_score * spatial_confidence * ocr_confidence"
+      },
+      "answer_format": {
+        "type": "text_span",
+        "normalize": true,
+        "trim_whitespace": true
+      },
+      "negative_variants": {
+        "enabled": true,
+        "strategies": [
+          {
+            "type": "wrong_key",
+            "description": "Ask about non-existent key in same form",
+            "expected_answer": "unanswerable"
+          },
+          {
+            "type": "value_from_other_form",
+            "description": "Ask about key from different form section",
+            "expected_answer": "unanswerable"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "question": "What is the invoice number?",
+          "key_match": "Invoice Number",
+          "value": "INV-2024-001",
+          "confidence": 0.95
+        }
+      ]
+    },
+    {
+      "id": "FORM_002",
+      "category": "form",
+      "name": "Date Field Extraction",
+      "description": "Extract date values from form fields",
+      "question_patterns": [
+        "What is the {date_field} date?",
+        "When was {event}?",
+        "What date is {field_name}?"
+      ],
+      "application_conditions": {
+        "layout_type": "key_value_region",
+        "min_confidence": 0.75,
+        "pattern_match": "(?i)(when|what date|what is the date|which date).*\\?",
+        "required_structure": {
+          "has_key": true,
+          "has_value": true,
+          "value_contains_date": true
+        },
+        "value_validation": {
+          "regex": "\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}|\\d{4}[/-]\\d{1,2}[/-]\\d{1,2}|\\w+\\s+\\d{1,2},?\\s+\\d{4}",
+          "date_formats": ["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD", "Month DD, YYYY"]
+        }
+      },
+      "extraction_method": {
+        "type": "span",
+        "steps": [
+          "1. Identify date-related key from question",
+          "2. Find matching key in form layout",
+          "3. Extract value and validate date format",
+          "4. Normalize date format if needed"
+        ],
+        "confidence_calculation": "key_match_score * date_validation_score * ocr_confidence"
+      },
+      "answer_format": {
+        "type": "text_span",
+        "normalize": true,
+        "date_normalization": "preserve_original"
+      },
+      "negative_variants": {
+        "enabled": true,
+        "strategies": [
+          {
+            "type": "ask_non_date_field",
+            "description": "Ask for date from non-date field",
+            "expected_answer": "unanswerable"
+          },
+          {
+            "type": "future_date",
+            "description": "Ask about date that hasn't occurred",
+            "expected_answer": "unanswerable"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "question": "What is the invoice date?",
+          "key_match": "Invoice Date",
+          "value": "12/15/2023",
+          "confidence": 0.92
+        }
+      ]
+    },
+    {
+      "id": "FORM_003",
+      "category": "form",
+      "name": "Amount/Number Field Extraction",
+      "description": "Extract numeric values, amounts, quantities from forms",
+      "question_patterns": [
+        "What is the {amount_field}?",
+        "How much is {field}?",
+        "What's the total {field}?"
+      ],
+      "application_conditions": {
+        "layout_type": "key_value_region",
+        "min_confidence": 0.75,
+        "pattern_match": "(?i)(how much|what is the|what's the).*(total|amount|price|cost|quantity|number).*\\?",
+        "required_structure": {
+          "has_key": true,
+          "has_value": true,
+          "value_is_numeric": true
+        },
+        "value_validation": {
+          "regex": "\\$?\\s*\\d+[,.]?\\d*|\\d+[,.]\\d{2,3}",
+          "contains_currency": "optional",
+          "numeric_validation": true
+        }
+      },
+      "extraction_method": {
+        "type": "span",
+        "steps": [
+          "1. Extract amount/number field name from question",
+          "2. Find matching key in form",
+          "3. Extract numeric value with currency if present",
+          "4. Validate numeric format"
+        ],
+        "confidence_calculation": "key_match_score * numeric_validation_score * ocr_confidence"
+      },
+      "answer_format": {
+        "type": "text_span",
+        "preserve_currency": true,
+        "normalize_separators": false
+      },
+      "negative_variants": {
+        "enabled": true,
+        "strategies": [
+          {
+            "type": "ask_text_as_amount",
+            "description": "Ask for amount from text field",
+            "expected_answer": "unanswerable"
+          },
+          {
+            "type": "ask_computed_total",
+            "description": "Ask for sum that requires calculation",
+            "expected_answer": "requires_reasoning"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "question": "What is the total amount?",
+          "key_match": "Total Amount",
+          "value": "$1,234.56",
+          "confidence": 0.94
+        }
+      ]
+    },
+    {
+      "id": "FORM_004",
+      "category": "form",
+      "name": "Checkbox/Boolean Field Extraction",
+      "description": "Extract yes/no or checkbox values from forms",
+      "question_patterns": [
+        "Is {field} checked?",
+        "Was {option} selected?",
+        "Is the {field} yes or no?"
+      ],
+      "application_conditions": {
+        "layout_type": "key_value_region",
+        "min_confidence": 0.7,
+        "pattern_match": "(?i)(is|was|has).*\\?(yes|no|checked|selected)?",
+        "required_structure": {
+          "has_key": true,
+          "has_checkbox_or_boolean": true
+        },
+        "value_validation": {
+          "allowed_values": ["yes", "no", "✓", "✗", "☑", "☐", "checked", "unchecked", "true", "false"]
+        }
+      },
+      "extraction_method": {
+        "type": "span",
+        "steps": [
+          "1. Identify checkbox/boolean field from question",
+          "2. Find matching field in form",
+          "3. Detect checkbox state or yes/no value",
+          "4. Normalize to yes/no or checked/unchecked"
+        ],
+        "confidence_calculation": "key_match_score * checkbox_detection_confidence * ocr_confidence"
+      },
+      "answer_format": {
+        "type": "text_span",
+        "normalize": true,
+        "boolean_mapping": {
+          "✓": "yes",
+          "☑": "yes",
+          "checked": "yes",
+          "✗": "no",
+          "☐": "no",
+          "unchecked": "no"
+        }
+      },
+      "negative_variants": {
+        "enabled": true,
+        "strategies": [
+          {
+            "type": "ambiguous_checkbox",
+            "description": "Ask about unclear checkbox state",
+            "expected_answer": "uncertain"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "question": "Is express shipping selected?",
+          "key_match": "Express Shipping",
+          "value": "✓",
+          "confidence": 0.88
+        }
+      ]
+    },
+    {
+      "id": "TABLE_001",
+      "category": "table",
+      "name": "Cell Lookup by Row and Column Headers",
+      "description": "Find cell value at intersection of specific row and column",
+      "question_patterns": [
+        "What is the {column_header} for {row_identifier}?",
+        "What's the {column} in the {row} row?",
+        "Find the {column} value where {row_condition}"
+      ],
+      "application_conditions": {
+        "layout_type": "table",
+        "min_confidence": 0.75,
+        "pattern_match": "(?i)(what is|what's|find).*\\bfor\\b.*|.*\\bwhere\\b.*",
+        "required_structure": {
+          "has_headers": true,
+          "has_rows": true,
+          "min_columns": 2,
+          "min_rows": 1
+        }
+      },
+      "extraction_method": {
+        "type": "cell",
+        "steps": [
+          "1. Extract column header and row identifier from question",
+          "2. Find column index by matching header",
+          "3. Find row index by matching row identifier (first column or condition)",
+          "4. Return cell at (row_index, column_index)"
+        ],
+        "confidence_calculation": "header_match_score * row_match_score * cell_ocr_confidence"
+      },
+      "answer_format": {
+        "type": "cell_value",
+        "normalize": true,
+        "trim_whitespace": true
+      },
+      "negative_variants": {
+        "enabled": true,
+        "strategies": [
+          {
+            "type": "non_existent_row",
+            "description": "Ask for row that doesn't exist in table",
+            "expected_answer": "unanswerable"
+          },
+          {
+            "type": "non_existent_column",
+            "description": "Ask for column that doesn't exist",
+            "expected_answer": "unanswerable"
+          },
+          {
+            "type": "ambiguous_reference",
+            "description": "Use ambiguous row/column reference",
+            "expected_answer": "uncertain"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "question": "What is the price for Product A?",
+          "column_header": "Price",
+          "row_identifier": "Product A",
+          "cell_value": "$29.99",
+          "confidence": 0.91
+        }
+      ]
+    },
+    {
+      "id": "TABLE_002",
+      "category": "table",
+      "name": "Column Headers Extraction",
+      "description": "Extract all or specific column headers from table",
+      "question_patterns": [
+        "What are the column headers?",
+        "What columns are in the table?",
+        "List the table headers"
+      ],
+      "application_conditions": {
+        "layout_type": "table",
+        "min_confidence": 0.8,
+        "pattern_match": "(?i)(what are|list|show).*(column|header|field).*",
+        "required_structure": {
+          "has_headers": true,
+          "header_row_identified": true
+        }
+      },
+      "extraction_method": {
+        "type": "span",
+        "steps": [
+          "1. Identify header row (usually first row)",
+          "2. Extract all cell values from header row",
+          "3. Clean and normalize header text",
+          "4. Return as comma-separated or list"
+        ],
+        "confidence_calculation": "header_detection_confidence * avg_cell_ocr_confidence"
+      },
+      "answer_format": {
+        "type": "list",
+        "separator": ", ",
+        "normalize": true
+      },
+      "negative_variants": {
+        "enabled": false
+      },
+      "examples": [
+        {
+          "question": "What are the column headers?",
+          "headers": ["Product", "Quantity", "Price", "Total"],
+          "confidence": 0.93
+        }
+      ]
+    },
+    {
+      "id": "TABLE_003",
+      "category": "table",
+      "name": "Row Count/Aggregation",
+      "description": "Count rows or aggregate values in table",
+      "question_patterns": [
+        "How many rows are in the table?",
+        "How many {items} are listed?",
+        "What is the total number of {entities}?"
+      ],
+      "application_conditions": {
+        "layout_type": "table",
+        "min_confidence": 0.75,
+        "pattern_match": "(?i)(how many|count|total number).*",
+        "required_structure": {
+          "has_rows": true,
+          "identifiable_data_rows": true
+        }
+      },
+      "extraction_method": {
+        "type": "computed",
+        "steps": [
+          "1. Identify data rows (exclude header)",
+          "2. Count rows or sum specific column if needed",
+          "3. Return numeric result"
+        ],
+        "confidence_calculation": "table_structure_confidence * row_detection_accuracy"
+      },
+      "answer_format": {
+        "type": "number",
+        "format": "integer"
+      },
+      "negative_variants": {
+        "enabled": true,
+        "strategies": [
+          {
+            "type": "ask_complex_aggregation",
+            "description": "Ask for aggregation requiring complex logic",
+            "expected_answer": "requires_reasoning"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "question": "How many products are listed?",
+          "row_count": 15,
+          "confidence": 0.89
+        }
+      ]
+    },
+    {
+      "id": "TABLE_004",
+      "category": "table",
+      "name": "Conditional Cell Lookup",
+      "description": "Find cell value based on condition in another column",
+      "question_patterns": [
+        "What is the {target_column} where {condition_column} is {value}?",
+        "Find {target_column} for the row where {condition}",
+        "What's the {target} when {condition}?"
+      ],
+      "application_conditions": {
+        "layout_type": "table",
+        "min_confidence": 0.75,
+        "pattern_match": "(?i)(what is|find|what's).*\\bwhere\\b.*|.*\\bwhen\\b.*",
+        "required_structure": {
+          "has_headers": true,
+          "has_rows": true,
+          "min_columns": 2
+        }
+      },
+      "extraction_method": {
+        "type": "cell",
+        "steps": [
+          "1. Extract condition column, condition value, and target column from question",
+          "2. Find condition column index",
+          "3. Find row where condition column equals condition value",
+          "4. Return target column value from that row"
+        ],
+        "confidence_calculation": "column_match_score * condition_match_score * cell_ocr_confidence"
+      },
+      "answer_format": {
+        "type": "cell_value",
+        "normalize": true
+      },
+      "negative_variants": {
+        "enabled": true,
+        "strategies": [
+          {
+            "type": "multiple_matches",
+            "description": "Condition matches multiple rows",
+            "expected_answer": "ambiguous"
+          },
+          {
+            "type": "no_match",
+            "description": "Condition matches no rows",
+            "expected_answer": "unanswerable"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "question": "What is the price where product is 'Laptop'?",
+          "condition_column": "Product",
+          "condition_value": "Laptop",
+          "target_column": "Price",
+          "cell_value": "$899.00",
+          "confidence": 0.90
+        }
+      ]
+    },
+    {
+      "id": "TEXTBLOCK_001",
+      "category": "textblock",
+      "name": "Named Entity Extraction",
+      "description": "Extract person names, organizations, locations from text blocks",
+      "question_patterns": [
+        "Who is {role}?",
+        "What is the {entity_type} name?",
+        "Which {entity_type} is mentioned?"
+      ],
+      "application_conditions": {
+        "layout_type": "text",
+        "min_confidence": 0.7,
+        "pattern_match": "(?i)(who|what|which).*(name|company|organization|person|location).*\\?",
+        "required_structure": {
+          "has_text": true,
+          "min_words": 5
+        },
+        "entity_detection": {
+          "types": ["PERSON", "ORG", "GPE", "LOC"],
+          "confidence_threshold": 0.6
+        }
+      },
+      "extraction_method": {
+        "type": "span",
+        "steps": [
+          "1. Identify entity type from question (person/org/location)",
+          "2. Apply NER or rule-based detection",
+          "3. Filter entities by type and context",
+          "4. Return most relevant entity"
+        ],
+        "confidence_calculation": "entity_detection_confidence * context_relevance_score * ocr_confidence",
+        "fallback_rules": [
+          "Capitalized sequences for names",
+          "Title patterns (Mr., Dr., Inc., Ltd.)",
+          "Location keywords (Street, Avenue, City, State)"
+        ]
+      },
+      "answer_format": {
+        "type": "text_span",
+        "normalize": false,
+        "preserve_capitalization": true
+      },
+      "negative_variants": {
+        "enabled": true,
+        "strategies": [
+          {
+            "type": "entity_not_present",
+            "description": "Ask for entity type not in text",
+            "expected_answer": "unanswerable"
+          },
+          {
+            "type": "ambiguous_entity",
+            "description": "Multiple entities of same type",
+            "expected_answer": "requires_context"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "question": "Who is the recipient?",
+          "entity_type": "PERSON",
+          "entity_value": "John Smith",
+          "confidence": 0.87
+        }
+      ]
+    },
+    {
+      "id": "TEXTBLOCK_002",
+      "category": "textblock",
+      "name": "Date Extraction from Text",
+      "description": "Extract dates mentioned in text blocks",
+      "question_patterns": [
+        "When was {event}?",
+        "What date is mentioned?",
+        "What is the {date_type} date?"
+      ],
+      "application_conditions": {
+        "layout_type": "text",
+        "min_confidence": 0.75,
+        "pattern_match": "(?i)(when|what date|which date).*\\?",
+        "required_structure": {
+          "has_text": true,
+          "contains_date": true
+        },
+        "date_detection": {
+          "regex": "\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}|\\d{4}[/-]\\d{1,2}[/-]\\d{1,2}|\\w+\\s+\\d{1,2},?\\s+\\d{4}|\\d{1,2}\\s+\\w+\\s+\\d{4}",
+          "formats": ["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD", "Month DD, YYYY", "DD Month YYYY"]
+        }
+      },
+      "extraction_method": {
+        "type": "span",
+        "steps": [
+          "1. Extract date context from question",
+          "2. Find all date patterns in text",
+          "3. Select most relevant date based on context",
+          "4. Return date span"
+        ],
+        "confidence_calculation": "date_detection_confidence * context_relevance_score * ocr_confidence"
+      },
+      "answer_format": {
+        "type": "text_span",
+        "normalize": false,
+        "preserve_format": true
+      },
+      "negative_variants": {
+        "enabled": true,
+        "strategies": [
+          {
+            "type": "no_date_in_text",
+            "description": "Ask for date when none present",
+            "expected_answer": "unanswerable"
+          },
+          {
+            "type": "multiple_dates",
+            "description": "Multiple dates without clear context",
+            "expected_answer": "ambiguous"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "question": "When was the document issued?",
+          "date_value": "January 15, 2024",
+          "confidence": 0.91
+        }
+      ]
+    },
+    {
+      "id": "TEXTBLOCK_003",
+      "category": "textblock",
+      "name": "Amount/Currency Extraction from Text",
+      "description": "Extract monetary amounts or numerical values from text",
+      "question_patterns": [
+        "How much {amount_context}?",
+        "What is the {amount_type}?",
+        "What amount is mentioned for {context}?"
+      ],
+      "application_conditions": {
+        "layout_type": "text",
+        "min_confidence": 0.75,
+        "pattern_match": "(?i)(how much|what is the|what amount).*(cost|price|amount|total|fee|charge|payment).*\\?",
+        "required_structure": {
+          "has_text": true,
+          "contains_numeric": true
+        },
+        "amount_detection": {
+          "regex": "\\$\\s*\\d+[,.]?\\d*|\\d+[,.]\\d{2}\\s*(USD|EUR|GBP|dollars?|euros?|pounds?)|\\d+[,.]\\d{2,3}",
+          "currency_symbols": ["$", "€", "£", "¥", "USD", "EUR", "GBP"]
+        }
+      },
+      "extraction_method": {
+        "type": "span",
+        "steps": [
+          "1. Extract amount context from question",
+          "2. Find all amount patterns in text",
+          "3. Filter by context relevance",
+          "4. Return most relevant amount with currency"
+        ],
+        "confidence_calculation": "amount_detection_confidence * context_match_score * ocr_confidence"
+      },
+      "answer_format": {
+        "type": "text_span",
+        "preserve_currency": true,
+        "normalize": false
+      },
+      "negative_variants": {
+        "enabled": true,
+        "strategies": [
+          {
+            "type": "no_amount",
+            "description": "Ask for amount not mentioned",
+            "expected_answer": "unanswerable"
+          },
+          {
+            "type": "ambiguous_amount",
+            "description": "Multiple amounts without clear context",
+            "expected_answer": "requires_context"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "question": "How much is the total payment?",
+          "amount_value": "$1,500.00",
+          "confidence": 0.89
+        }
+      ]
+    },
+    {
+      "id": "TEXTBLOCK_004",
+      "category": "textblock",
+      "name": "Address Extraction",
+      "description": "Extract full or partial addresses from text blocks",
+      "question_patterns": [
+        "What is the address?",
+        "Where is {entity} located?",
+        "What's the {address_type} address?"
+      ],
+      "application_conditions": {
+        "layout_type": "text",
+        "min_confidence": 0.7,
+        "pattern_match": "(?i)(what is the|where|what's the).*(address|location|street|city).*\\?",
+        "required_structure": {
+          "has_text": true,
+          "min_words": 10
+        },
+        "address_detection": {
+          "components": ["street_number", "street_name", "city", "state", "zip_code", "country"],
+          "patterns": {
+            "street": "\\d+\\s+[A-Z][a-zA-Z\\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr)",
+            "zip": "\\b\\d{5}(?:-\\d{4})?\\b",
+            "city_state": "[A-Z][a-zA-Z\\s]+,\\s*[A-Z]{2}",
+            "full_address": "\\d+\\s+[A-Z][a-zA-Z\\s,]+\\d{5}"
+          }
+        }
+      },
+      "extraction_method": {
+        "type": "span",
+        "steps": [
+          "1. Identify address type from question (billing/shipping/etc)",
+          "2. Find address patterns in text",
+          "3. Assemble complete address from components",
+          "4. Return address span"
+        ],
+        "confidence_calculation": "address_detection_confidence * completeness_score * ocr_confidence"
+      },
+      "answer_format": {
+        "type": "text_span",
+        "normalize": false,
+        "preserve_formatting": true,
+        "multiline_allowed": true
+      },
+      "negative_variants": {
+        "enabled": true,
+        "strategies": [
+          {
+            "type": "incomplete_address",
+            "description": "Address missing key components",
+            "expected_answer": "partial"
+          },
+          {
+            "type": "no_address",
+            "description": "Ask for address when none present",
+            "expected_answer": "unanswerable"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "question": "What is the shipping address?",
+          "address_value": "123 Main Street, New York, NY 10001",
+          "confidence": 0.86
+        }
+      ]
+    }
+  ],
+  "usage_guidelines": {
+    "template_selection": "Match question against patterns, check layout type and confidence thresholds",
+    "confidence_threshold": 0.7,
+    "fallback_strategy": "If no template matches, return 'unanswerable' or use extractive QA model",
+    "multi_template_handling": "If multiple templates match, use highest confidence score",
+    "answer_validation": "Validate extracted answer against expected format and business logic"
+  }
+}

@@ -283,18 +283,153 @@ class DocumentLayoutAnalyzer:
         
         return lines
     
-    def group_lines_to_blocks(self, lines: List[Dict]) -> List[Dict]:
+    def _is_form_line(self, line: Dict) -> Tuple[bool, Optional[Tuple[str, str]]]:
+        """
+        Kiểm tra xem line có phải là form field (key: value) không.
+        
+        Args:
+            line: Line dict với 'text'
+            
+        Returns:
+            (is_form, (key, value) or None)
+        """
+        text = line.get('text', '').strip()
+        
+        # Pattern key: value (key ngắn, < 40 chars)
+        # Match: "Name: John" nhưng không match "This is a sentence: another sentence"
+        pattern = re.compile(r'^([A-Za-z][A-Za-z0-9\s\-_/\.]{0,38}):\s*(.+)$')
+        match = pattern.match(text)
+        
+        if match:
+            key = match.group(1).strip()
+            value = match.group(2).strip()
+            
+            # Key không nên quá dài hoặc có quá nhiều spaces (giống câu)
+            if len(key) <= 35 and key.count(' ') <= 4:
+                return True, (key, value)
+        
+        return False, None
+    
+    def _split_form_line_tokens(self, line: Dict) -> List[Dict]:
+        """
+        Tách line chứa nhiều form fields thành các lines riêng.
+        VD: "Name: John Date: Monday" → ["Name: John", "Date: Monday"]
+        
+        Args:
+            line: Original line dict
+            
+        Returns:
+            List of split line dicts
+        """
+        text = line.get('text', '').strip()
+        tokens = line.get('tokens', [])
+        
+        # Pattern để tìm các form field trong text
+        # Tìm pattern: Word: Value (followed by another Word: or end)
+        pattern = re.compile(
+            r'([A-Za-z][A-Za-z0-9\s\-_/\.]{0,35}):\s*'  # Key + colon
+            r'([^:]+?)'  # Value (non-greedy, stop before next colon)
+            r'(?=\s+[A-Za-z][A-Za-z0-9\s\-_/\.]{0,35}:|$)'  # Lookahead: next key or end
+        )
+        
+        matches = list(pattern.finditer(text))
+        
+        if len(matches) <= 1:
+            # Không có nhiều fields hoặc chỉ có 1
+            return [line]
+        
+        # Tách thành nhiều lines dựa trên positions
+        result_lines = []
+        original_bbox = line.get('bbox')
+        
+        for i, match in enumerate(matches):
+            key = match.group(1).strip()
+            value = match.group(2).strip()
+            field_text = f"{key}: {value}"
+            
+            # Tìm tokens thuộc field này dựa trên text positions
+            field_start = match.start()
+            field_end = match.end()
+            
+            # Tính bbox ước tính (chia đều theo tỉ lệ text)
+            field_bbox = None
+            if original_bbox:
+                x_min, y_min, x_max, y_max = self.bbox_bounds(original_bbox)
+                total_len = len(text)
+                
+                # Tỉ lệ vị trí của field trong text
+                start_ratio = field_start / total_len if total_len > 0 else 0
+                end_ratio = field_end / total_len if total_len > 0 else 1
+                
+                # Tính bbox mới
+                field_x_min = x_min + (x_max - x_min) * start_ratio
+                field_x_max = x_min + (x_max - x_min) * end_ratio
+                
+                field_bbox = [
+                    [field_x_min, y_min],
+                    [field_x_max, y_min],
+                    [field_x_max, y_max],
+                    [field_x_min, y_max]
+                ]
+            
+            result_lines.append({
+                'text': field_text,
+                'bbox': field_bbox,
+                'tokens': [],  # Tokens sẽ được fill sau nếu cần
+                'token_ids': [],
+                'is_form_field': True,
+                'form_key': key,
+                'form_value': value
+            })
+        
+        return result_lines
+    
+    def group_lines_to_blocks(self, lines: List[Dict], preserve_form_fields: bool = True) -> List[Dict]:
         """
         Gom các lines thành blocks dựa trên vertical gap và x-overlap.
         
+        Với preserve_form_fields=True:
+        - Phát hiện lines có nhiều form fields (Name: X Date: Y)
+        - Tách thành các lines riêng trước khi group
+        - Không merge form fields với nhau
+        
         Args:
             lines: List of lines từ group_tokens_to_lines
+            preserve_form_fields: Nếu True, tách và bảo toàn form fields
             
         Returns:
             List of blocks, mỗi block có {lines, bbox, line_ids}
         """
         if not lines:
             return []
+        
+        # === BƯỚC MỚI: Tiền xử lý để tách form fields ===
+        if preserve_form_fields:
+            processed_lines = []
+            for line in lines:
+                # Check nếu line có nhiều form fields
+                text = line.get('text', '')
+                # Đếm số lần xuất hiện của pattern "Word:"
+                colon_pattern = re.compile(r'[A-Za-z][A-Za-z0-9\s\-_/\.]{0,35}:')
+                matches = list(colon_pattern.finditer(text))
+                
+                if len(matches) >= 2:
+                    # Có khả năng nhiều form fields bị ghép
+                    split_lines = self._split_form_line_tokens(line)
+                    processed_lines.extend(split_lines)
+                else:
+                    # Check nếu là single form field
+                    is_form, kv = self._is_form_line(line)
+                    if is_form and kv is not None:
+                        line_copy = line.copy()
+                        line_copy['is_form_field'] = True
+                        line_copy['form_key'] = kv[0]
+                        line_copy['form_value'] = kv[1]
+                        processed_lines.append(line_copy)
+                    else:
+                        processed_lines.append(line)
+            
+            lines = processed_lines
         
         n_lines = len(lines)
         
@@ -311,6 +446,13 @@ class DocumentLayoutAnalyzer:
         median_line_width = np.median(line_widths) if line_widths else 100.0
         x1_close_threshold = 0.05 * median_line_width  # 5% of median width
         
+        # === LOGIC MỚI: Xử lý form fields đặc biệt ===
+        # Form fields nên group với nhau, nhưng KHÔNG merge text với nhau
+        # Tạo separate form blocks và text blocks
+        
+        form_line_indices = [i for i, line in enumerate(lines) if line.get('is_form_field')]
+        text_line_indices = [i for i, line in enumerate(lines) if not line.get('is_form_field')]
+        
         # Build adjacency graph
         adj = defaultdict(list)
         
@@ -318,6 +460,10 @@ class DocumentLayoutAnalyzer:
             for j in range(i + 1, n_lines):
                 if not lines[i]['bbox'] or not lines[j]['bbox']:
                     continue
+                
+                # === RULE MỚI: Form fields chỉ kết nối với form fields khác ===
+                i_is_form = lines[i].get('is_form_field', False)
+                j_is_form = lines[j].get('is_form_field', False)
                 
                 # Check vertical distance
                 xi_min, yi_min, xi_max, yi_max = self.bbox_bounds(lines[i]['bbox'])
@@ -329,14 +475,31 @@ class DocumentLayoutAnalyzer:
                 x_overlap_start = max(xi_min, xj_min)
                 x_overlap_end = min(xi_max, xj_max)
                 x_overlap = max(0, x_overlap_end - x_overlap_start)
-                x_overlap_ratio = x_overlap / min(xi_max - xi_min, xj_max - xj_min)
+                min_width = min(xi_max - xi_min, xj_max - xj_min)
+                x_overlap_ratio = x_overlap / min_width if min_width > 0 else 0
                 
                 # Also check if x1 positions are close (for aligned text)
                 x1_close = abs(xi_min - xj_min) < x1_close_threshold
                 
-                # Connect if close vertically and have x-overlap or aligned
-                if v_gap < vertical_gap_threshold and \
-                   (x_overlap_ratio >= self.block_x_overlap_threshold or x1_close):
+                # === ĐIỀU KIỆN KẾT NỐI MỚI ===
+                should_connect = False
+                
+                if i_is_form and j_is_form:
+                    # Form fields: Chỉ kết nối nếu rất gần và aligned
+                    # Cho phép form fields gom thành form region
+                    if v_gap < vertical_gap_threshold and x1_close:
+                        should_connect = True
+                elif i_is_form or j_is_form:
+                    # Một cái form, một cái text: KHÔNG kết nối
+                    # Để tách form ra khỏi running text
+                    should_connect = False
+                else:
+                    # Cả 2 đều là text: Logic cũ
+                    if v_gap < vertical_gap_threshold and \
+                       (x_overlap_ratio >= self.block_x_overlap_threshold or x1_close):
+                        should_connect = True
+                
+                if should_connect:
                     adj[i].append(j)
                     adj[j].append(i)
         

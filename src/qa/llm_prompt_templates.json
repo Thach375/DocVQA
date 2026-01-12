@@ -1,0 +1,205 @@
+{
+  "version": "1.0.0",
+  "description": "LLM Prompt Templates for Multi-Region QA Generation",
+  
+  "system_prompt": "You are an expert Question-Answer generator for document understanding. Your task is to generate questions that REQUIRE information from MULTIPLE document regions to answer. CRITICAL RULES: 1) Answer MUST be derivable from provided text. 2) Question MUST require >=2 regions. 3) You MUST cite exact evidence. 4) NO hallucination. 5) Questions should be natural.",
+
+  "prompt_templates": {
+    
+    "text_table_validation": {
+      "id": "PT001",
+      "name": "Text ↔ Table Validation",
+      "reasoning_type": "validation",
+      "description": "Generate questions that validate text claims against tabular data",
+      
+      "prompt_template": "## DOCUMENT REGIONS\n\n### Region #{source_id} ({source_type})\n```\n{source_text}\n```\n\n### Region #{target_id} ({target_type})\n```\n{target_text}\n```\n\n## TASK\nGenerate a question that requires VALIDATING information from the {source_type} against data in the {target_type}.\n\nThe question should:\n- Ask whether a claim/statement is supported by tabular data\n- Require cross-referencing specific values\n- Have a definitive, verifiable answer\n\n## OUTPUT (JSON)\n```json\n{\n    \"question\": \"<natural question>\",\n    \"answer\": \"<factual answer with specific values>\",\n    \"evidence_region_ids\": [<source_id>, <target_id>],\n    \"evidence_quotes\": [\"<exact quote from text>\", \"<exact quote from table>\"],\n    \"reasoning_type\": \"validation\",\n    \"reasoning_explanation\": \"<how text claim maps to table data>\"\n}\n```",
+      
+      "example": {
+        "source_node": {
+          "node_id": 1,
+          "region_type": "TextBlock",
+          "text": "The company reported strong Q3 performance with revenue reaching $2.5 million, representing a 15% increase from the previous quarter."
+        },
+        "target_node": {
+          "node_id": 2,
+          "region_type": "Table",
+          "text": "Quarterly Revenue Summary:\nQ1: $1.8M\nQ2: $2.17M\nQ3: $2.5M\nQ4 (projected): $2.8M"
+        },
+        "expected_output": {
+          "question": "According to the quarterly revenue table, is the reported 15% Q3 increase from Q2 accurate?",
+          "answer": "Yes, the 15% increase is accurate. Q2 revenue was $2.17M and Q3 was $2.5M, which is approximately a 15.2% increase ((2.5-2.17)/2.17 = 0.152).",
+          "evidence_region_ids": [1, 2],
+          "evidence_quotes": [
+            "revenue reaching $2.5 million, representing a 15% increase from the previous quarter",
+            "Q2: $2.17M\nQ3: $2.5M"
+          ],
+          "reasoning_type": "validation",
+          "reasoning_explanation": "The text claims 15% growth from Q2 to Q3. The table shows Q2=$2.17M and Q3=$2.5M. Calculating: (2.5-2.17)/2.17 = 15.2%, which validates the claim."
+        }
+      }
+    },
+
+    "figure_caption_mapping": {
+      "id": "PT002",
+      "name": "Figure ↔ Caption Mapping",
+      "reasoning_type": "coreference",
+      "description": "Generate questions connecting figure content with caption descriptions",
+      
+      "prompt_template": "## DOCUMENT REGIONS\n\n### Region #{source_id} (Figure)\n```\n{source_text}\n```\n\n### Region #{target_id} (Caption/TextBlock)\n```\n{target_text}\n```\n\n## TASK\nGenerate a question that requires understanding BOTH the figure content AND its caption/description.\n\nThe question should:\n- Connect specific visual elements to their textual descriptions\n- Require both regions to form a complete answer\n- Test understanding of what the figure illustrates\n\n## OUTPUT (JSON)\n```json\n{\n    \"question\": \"<natural question>\",\n    \"answer\": \"<answer linking figure and caption>\",\n    \"evidence_region_ids\": [<figure_id>, <caption_id>],\n    \"evidence_quotes\": [\"<quote from figure desc>\", \"<quote from caption>\"],\n    \"reasoning_type\": \"coreference\",\n    \"reasoning_explanation\": \"<how figure and caption connect>\"\n}\n```",
+      
+      "example": {
+        "source_node": {
+          "node_id": 3,
+          "region_type": "Figure",
+          "text": "[Bar chart showing three bars: Blue bar (45%), Green bar (35%), Red bar (20%)]"
+        },
+        "target_node": {
+          "node_id": 4,
+          "region_type": "TextBlock",
+          "text": "Figure 2: Market share distribution among top three competitors. XYZ Corp leads with the largest share, followed by ABC Inc and DEF Ltd."
+        },
+        "expected_output": {
+          "question": "Based on Figure 2 and its caption, what is XYZ Corp's market share and how does it compare to its competitors?",
+          "answer": "XYZ Corp has 45% market share (the blue/largest bar). ABC Inc has 35% and DEF Ltd has 20%. XYZ Corp leads with 10 percentage points more than ABC Inc.",
+          "evidence_region_ids": [3, 4],
+          "evidence_quotes": [
+            "Blue bar (45%), Green bar (35%), Red bar (20%)",
+            "XYZ Corp leads with the largest share, followed by ABC Inc and DEF Ltd"
+          ],
+          "reasoning_type": "coreference",
+          "reasoning_explanation": "The caption identifies the order (XYZ > ABC > DEF), and the figure provides specific percentages. Mapping: XYZ=Blue=45%, ABC=Green=35%, DEF=Red=20%."
+        }
+      }
+    },
+
+    "text_text_coreference": {
+      "id": "PT003",
+      "name": "Text ↔ Text Coreference",
+      "reasoning_type": "coreference",
+      "description": "DEPRECATED: This template generates questions like 'what appears in region 1 vs region 2' which users cannot answer because they cannot see region boundaries. Use single-region QA or title-content QA instead.",
+      "deprecated": true,
+      "deprecation_reason": "Users cannot identify invisible region boundaries on documents. Cross-region questions should only reference visible elements like titles, headers, or captions.",
+      
+      "prompt_template": "NOT_USED",
+      
+      "example": {
+        "note": "This template is deprecated and should not be used"
+      }
+    },
+    "table_table_crosscheck": {
+      "id": "PT004",
+      "name": "Table ↔ Table Cross-check",
+      "reasoning_type": "comparison",
+      "description": "Generate questions comparing data across multiple tables",
+      
+      "prompt_template": "## DOCUMENT REGIONS\n\n### Region #{source_id} (Table 1)\n```\n{source_text}\n```\n\n### Region #{target_id} (Table 2)\n```\n{target_text}\n```\n\n## TASK\nGenerate a question that requires COMPARING or CROSS-CHECKING data across both tables.\n\nThe question should:\n- Compare values for same entity/metric across tables\n- Aggregate or calculate differences\n- Identify patterns or discrepancies\n\n## OUTPUT (JSON)\n```json\n{\n    \"question\": \"<natural question>\",\n    \"answer\": \"<answer with specific comparison>\",\n    \"evidence_region_ids\": [<table1_id>, <table2_id>],\n    \"evidence_quotes\": [\"<data from table1>\", \"<data from table2>\"],\n    \"reasoning_type\": \"comparison\",\n    \"reasoning_explanation\": \"<how tables are cross-referenced>\"\n}\n```",
+      
+      "example": {
+        "source_node": {
+          "node_id": 7,
+          "region_type": "Table",
+          "text": "2023 Budget Allocation:\nMarketing: $500K\nR&D: $800K\nOperations: $1.2M\nTotal: $2.5M"
+        },
+        "target_node": {
+          "node_id": 8,
+          "region_type": "Table",
+          "text": "2023 Actual Spending:\nMarketing: $480K\nR&D: $950K\nOperations: $1.1M\nTotal: $2.53M"
+        },
+        "expected_output": {
+          "question": "Which department exceeded its 2023 budget allocation and by how much?",
+          "answer": "R&D exceeded its budget by $150K. The budget was $800K but actual spending was $950K (18.75% over budget). Marketing and Operations both came in under budget.",
+          "evidence_region_ids": [7, 8],
+          "evidence_quotes": [
+            "R&D: $800K",
+            "R&D: $950K"
+          ],
+          "reasoning_type": "comparison",
+          "reasoning_explanation": "Comparing budget vs actual for each department: Marketing ($500K vs $480K = -$20K), R&D ($800K vs $950K = +$150K), Operations ($1.2M vs $1.1M = -$100K). Only R&D exceeded budget."
+        }
+      }
+    },
+
+    "form_conclusion": {
+      "id": "PT005",
+      "name": "Form ↔ Conclusion Text",
+      "reasoning_type": "inference",
+      "description": "Generate questions connecting form field values to conclusions",
+      
+      "prompt_template": "## DOCUMENT REGIONS\n\n### Region #{source_id} (Form)\n```\n{source_text}\n```\n\n### Region #{target_id} (Conclusion/Summary)\n```\n{target_text}\n```\n\n## TASK\nGenerate a question that requires CONNECTING form field values to conclusions or decisions.\n\nThe question should:\n- Link specific form data to stated conclusions\n- Test whether conclusions are supported by form values\n- Require understanding both data input and output\n\n## OUTPUT (JSON)\n```json\n{\n    \"question\": \"<natural question>\",\n    \"answer\": \"<answer linking form data to conclusion>\",\n    \"evidence_region_ids\": [<form_id>, <conclusion_id>],\n    \"evidence_quotes\": [\"<form field values>\", \"<conclusion statement>\"],\n    \"reasoning_type\": \"inference\",\n    \"reasoning_explanation\": \"<how form data supports conclusion>\"\n}\n```",
+      
+      "example": {
+        "source_node": {
+          "node_id": 9,
+          "region_type": "Form",
+          "text": "Loan Application Form:\nApplicant: John Smith\nAnnual Income: $85,000\nCredit Score: 720\nDebt-to-Income Ratio: 28%\nLoan Amount Requested: $250,000"
+        },
+        "target_node": {
+          "node_id": 10,
+          "region_type": "TextBlock",
+          "text": "Application Decision: APPROVED. The applicant meets all qualification criteria with excellent creditworthiness indicators and a healthy debt ratio well below the 36% threshold."
+        },
+        "expected_output": {
+          "question": "What specific form data supports the loan approval decision, particularly regarding the debt ratio assessment?",
+          "answer": "The approval is supported by: Credit Score of 720 (indicating 'excellent creditworthiness'), and Debt-to-Income Ratio of 28% which is 'well below the 36% threshold' mentioned in the decision. The annual income of $85,000 also supports the $250,000 loan request.",
+          "evidence_region_ids": [9, 10],
+          "evidence_quotes": [
+            "Credit Score: 720\nDebt-to-Income Ratio: 28%",
+            "excellent creditworthiness indicators and a healthy debt ratio well below the 36% threshold"
+          ],
+          "reasoning_type": "inference",
+          "reasoning_explanation": "The conclusion mentions 'excellent creditworthiness' (form shows 720 credit score) and 'debt ratio well below 36%' (form shows 28%). The approval decision directly maps to these form values."
+        }
+      }
+    }
+  },
+
+  "verification_rules": {
+    "consistency_check": {
+      "description": "Verify answer is derivable from evidence",
+      "checks": [
+        "All key facts in answer must appear in evidence_quotes or source text",
+        "Numerical values must match exactly",
+        "Entity names must be consistent",
+        "Logical inferences must be valid"
+      ],
+      "minimum_consistency_score": 0.3
+    },
+    
+    "reject_rules": {
+      "hallucination": {
+        "description": "Answer contains facts not in evidence",
+        "detection": "Key terms in answer not found in any evidence quote or source region",
+        "action": "REJECT"
+      },
+      "vague_question": {
+        "description": "Question is too ambiguous to answer definitively",
+        "patterns": ["what is this", "describe", "explain", "tell me about"],
+        "action": "REJECT"
+      },
+      "unanswerable": {
+        "description": "Question cannot be answered from provided regions",
+        "detection": "Answer requires information not present in any region",
+        "action": "REJECT"
+      },
+      "region_reference": {
+        "description": "Question references region IDs that user cannot see",
+        "patterns": ["region 1", "region 2", "first region", "second region", "in the first region", "in the second region"],
+        "action": "REJECT",
+        "note": "Users cannot see region boundaries on documents. Questions must reference visible content like titles, headers, or table names."
+      },
+      "trivial": {
+        "description": "Question is too simple/obvious",
+        "patterns": ["what is written in region", "read region", "what does region contain"],
+        "action": "REJECT"
+      }
+    }
+  },
+
+  "quality_metrics": {
+    "required_fields": ["question", "answer", "evidence_region_ids", "evidence_quotes", "reasoning_type"],
+    "minimum_evidence_quotes": 1,
+    "minimum_question_words": 5,
+    "answer_max_length": 500,
+    "note": "Single-region QA is allowed and encouraged for better user experience. Cross-region QA should only use visible references like titles, headers, captions."
+  }
+}
