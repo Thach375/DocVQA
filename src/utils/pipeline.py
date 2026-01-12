@@ -53,7 +53,7 @@ class FullPipelineProcessor:
             
             image_id = Path(image_path).stem
             
-            # 2. Run OCR
+            # 2. Run OCR with layout
             ocr_result = self.ocr_processor.run_ocr_with_layout(image)
             
             if not ocr_result.get('success', False):
@@ -64,8 +64,16 @@ class FullPipelineProcessor:
                     'image_path': str(image_path)
                 }
             
-            # 3. Layout Analysis
-            layout_result = self.layout_analyzer.analyze_layout(ocr_result)
+            # 3. Get layout result (already computed by run_ocr_with_layout)
+            layout_result = ocr_result.get('layout', {})
+            
+            if not layout_result:
+                return {
+                    'success': False,
+                    'error': 'Layout analysis failed',
+                    'image_id': image_id,
+                    'image_path': str(image_path)
+                }
             
             regions = layout_result.get('regions', [])
             
@@ -79,32 +87,18 @@ class FullPipelineProcessor:
                     'adjacency': {}
                 }
             
-            # 5. Prepare output data
+            # 5. Prepare output data (nodes, edges, adjacency)
             output_data = {
                 'version': '1.0.0',
                 'created_at': datetime.now().isoformat(),
-                'image_id': image_id,
-                'image_path': str(image_path),
-                'ocr': {
-                    'success': ocr_result.get('success', False),
-                    'num_tokens': len(ocr_result.get('details', [])),
-                    'processing_time_ms': ocr_result.get('processing_time_ms', 0),
-                    'tokens': ocr_result.get('details', [])
-                },
-                'layout': {
-                    'num_lines': len(layout_result.get('lines', [])),
-                    'num_blocks': len(layout_result.get('blocks', [])),
+                'nodes': graph_result['nodes'],
+                'edges': graph_result['edges'],
+                'adjacency': graph_result['adjacency'],
+                'metadata': {
+                    'source_image': Path(image_path).name,
                     'num_regions': len(regions),
-                    'lines': layout_result.get('lines', []),
-                    'blocks': layout_result.get('blocks', []),
-                    'regions': regions
-                },
-                'graph': {
                     'num_nodes': len(graph_result['nodes']),
-                    'num_edges': len(graph_result['edges']),
-                    'nodes': graph_result['nodes'],
-                    'edges': graph_result['edges'],
-                    'adjacency': graph_result['adjacency']
+                    'num_edges': len(graph_result['edges'])
                 }
             }
             
@@ -112,9 +106,9 @@ class FullPipelineProcessor:
             result = {
                 'success': True,
                 'image_id': image_id,
-                'num_tokens': output_data['ocr']['num_tokens'],
-                'num_regions': output_data['layout']['num_regions'],
-                'num_edges': output_data['graph']['num_edges'],
+                'num_nodes': len(graph_result['nodes']),
+                'num_regions': len(regions),
+                'num_edges': output_data['metadata']['num_edges'],
                 'data': output_data
             }
             

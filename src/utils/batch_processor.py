@@ -125,7 +125,7 @@ class BatchProcessor:
                     continue
                 else:
                     # File exists but corrupt, re-process
-                    print(f"\n⚠️ Corrupt JSON detected: {image_id}, re-processing...")
+                    print(f"\n Corrupt JSON detected: {image_id}, re-processing...")
             
             # Process image
             result = self.pipeline.process_image(
@@ -160,13 +160,13 @@ class BatchProcessor:
             with open(json_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
-            # Check required keys
-            required_keys = ['version', 'image_id', 'ocr', 'layout', 'graph']
+            # Check required keys for new format (nodes-based)
+            required_keys = ['version', 'nodes', 'edges', 'adjacency', 'metadata']
             if not all(key in data for key in required_keys):
                 return False
             
-            # Check OCR success
-            if not data['ocr'].get('success', False):
+            # Check if has nodes
+            if not isinstance(data['nodes'], list) or len(data['nodes']) == 0:
                 return False
             
             return True
