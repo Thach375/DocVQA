@@ -306,24 +306,15 @@ class PaddleOCRProcessor:
         try:
             # Nếu use_preprocessing, preprocess ảnh trước
             if use_preprocessing:
-                if isinstance(image_path, str):
-                    preprocessed_img = self.preprocess_image(image_path, max_size=max_size)
-                    # Lưu tạm để OCR engine có thể đọc
-                    import tempfile
-                    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
-                        preprocessed_img.save(tmp.name)
-                        ocr_input = tmp.name
-                else:
-                    # Nếu đã là PIL Image
-                    import tempfile
-                    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
-                        image_path.save(tmp.name)
-                        ocr_input = tmp.name
+                preprocessed_img = self.preprocess_image(image_path, max_size=max_size)
+                # Lưu tạm để OCR engine có thể đọc
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                    preprocessed_img.save(tmp.name)
+                    ocr_input = tmp.name
             else:
                 ocr_input = image_path if isinstance(image_path, str) else image_path
-            
             out = self.ocr_engine.predict(ocr_input)
-            
             if not out:
                 return self._empty_result("Không có output từ predict()")
             
@@ -361,7 +352,6 @@ class PaddleOCRProcessor:
                 return self._empty_result("Không phát hiện văn bản")
             
             avg_conf = sum(d["confidence"] for d in details) / len(details) if details else 0.0
-            
             return {
                 "text": " ".join(lines),
                 "lines": lines,
@@ -421,7 +411,6 @@ class PaddleOCRProcessor:
         except Exception as e:
             print(f"Layout analysis error: {e}")
             ocr_result['layout'] = None
-        
         return ocr_result
     
     def draw_bounding_boxes(
@@ -559,166 +548,6 @@ class PaddleOCRProcessor:
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Convert numpy types to Python native types
-        def convert_numpy_types(obj):
-            """Recursively convert numpy types to Python native types."""
-            import numpy as np
-            
-            if isinstance(obj, np.bool_):
-                return bool(obj)
-            elif isinstance(obj, (np.int_, np.intc, np.intp, np.int8, np.int16, np.int32, np.int64)):
-                return int(obj)
-            elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
-                return float(obj)
-            elif isinstance(obj, np.ndarray):
-                return obj.tolist()
-            elif isinstance(obj, dict):
-                return {key: convert_numpy_types(value) for key, value in obj.items()}
-            elif isinstance(obj, (list, tuple)):
-                return [convert_numpy_types(item) for item in obj]
-            else:
-                return obj
-        
-        data = convert_numpy_types(data)
-        
-        with open(output_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    
-    def process_batch(
-        self,
-        image_folder: str,
-        output_folder: str,
-        image_extensions: tuple = ('.png', '.jpg', '.jpeg'),
-        save_json: bool = True,
-        max_images: Optional[int] = None,
-        use_preprocessing: bool = True,
-        max_size: int = 2500
-    ) -> Dict[str, Any]:
-        """
-        Xử lý OCR hàng loạt cho tất cả ảnh trong folder.
-        
-        Args:
-            image_folder: Thư mục chứa ảnh
-            output_folder: Thư mục lưu kết quả JSON
-            image_extensions: Các định dạng ảnh hỗ trợ
-            save_json: Có lưu file JSON không
-            max_images: Số ảnh tối đa cần xử lý (None = xử lý tất cả)
-            use_preprocessing: Có áp dụng preprocessing không
-            max_size: Kích thước tối đa cho preprocessing
-            
-        Returns:
-            Dict chứa thống kê xử lý
-        """
-        # Thu thập file ảnh
-        image_files = []
-        for ext in image_extensions:
-            image_files.extend(glob.glob(os.path.join(image_folder, f"**/*{ext}"), recursive=True))
-        
-        # Giới hạn số lượng ảnh nếu cần
-        if max_images is not None:
-            image_files = image_files[:max_images]
-        
-        print(f"Tìm thấy {len(image_files)} ảnh")
-        if use_preprocessing:
-            print("Preprocessing: Bật (resize, remove padding, perspective, denoise)")
-        else:
-            print("Preprocessing: Tắt")
-        
-        # Thống kê
-        stats = {
-            'total': len(image_files),
-            'success': 0,
-            'failed': 0,
-            'results': []
-        }
-        
-        os.makedirs(output_folder, exist_ok=True)
-        
-        # Xử lý từng ảnh
-        for image_path in tqdm(image_files, desc="Đang xử lý OCR"):
-            ocr_result = self.run_ocr(image_path, use_preprocessing=use_preprocessing, max_size=max_size)
-            
-            # Tạo tên file JSON
-            rel_path = os.path.relpath(image_path, image_folder)
-            stem = Path(rel_path).stem
-            json_filename = f"{stem}.json"
-            json_path = os.path.join(output_folder, json_filename)
-            
-            if save_json:
-                self.save_result_to_json(ocr_result, json_path)
-            
-            # Cập nhật thống kê
-            if ocr_result['success']:
-                stats['success'] += 1
-            else:
-                stats['failed'] += 1
-            
-            stats['results'].append({
-                'image_path': image_path,
-                'json_path': json_path,
-                'success': ocr_result['success'],
-                'num_lines': ocr_result['num_lines']
-            })
-        
-        # In thống kê
-        print(f"\n{'='*60}")
-        print("THỐNG KÊ XỬ LÝ OCR")
-        print(f"{'='*60}")
-        print(f"Tổng số ảnh: {stats['total']}")
-        print(f"  ✓ Thành công: {stats['success']} ({stats['success']/max(stats['total'],1)*100:.1f}%)")
-        print(f"  ✗ Thất bại: {stats['failed']} ({stats['failed']/max(stats['total'],1)*100:.1f}%)")
-        print(f"{'='*60}")
-        
-        return stats
-    
-    def process_docvqa_images(
-        self,
-        images_folder: str,
-        output_folder: str,
-        subsets: List[str] = ["train", "test", "validation"],
-        max_images_per_subset: Optional[int] = None,
-        use_preprocessing: bool = True,
-        max_size: int = 2500
-    ) -> Dict[str, Any]:
-        """
-        Xử lý OCR cho dataset DocVQA.
-        
-        Args:
-            images_folder: Thư mục gốc chứa ảnh DocVQA
-            output_folder: Thư mục lưu kết quả
-            subsets: Các tập dữ liệu cần xử lý
-            max_images_per_subset: Số ảnh tối đa mỗi subset (None = xử lý tất cả)
-            use_preprocessing: Có áp dụng preprocessing không
-            max_size: Kích thước tối đa cho preprocessing
-            
-        Returns:
-            Dict chứa thống kê theo từng subset
-        """
-        all_stats = {}
-        
-        for subset in subsets:
-            subset_folder = os.path.join(images_folder, subset)
-            if not os.path.exists(subset_folder):
-                print(f"Không tìm thấy: {subset_folder}")
-                continue
-            
-            print(f"\n{'='*60}")
-            print(f"XỬ LÝ TẬP: {subset.upper()}")
-            print(f"{'='*60}")
-            
-            output_subset = os.path.join(output_folder, subset)
-            stats = self.process_batch(
-                subset_folder, 
-                output_subset, 
-                max_images=max_images_per_subset,
-                use_preprocessing=use_preprocessing,
-                max_size=max_size
-            )
-            all_stats[subset] = stats
-        
-        return all_stats
-
-
 # Chạy trực tiếp để test
 if __name__ == "__main__":
     # Khởi tạo processor
@@ -731,5 +560,4 @@ if __name__ == "__main__":
     # Xử lý batch cho DocVQA
     # processor.process_docvqa_images(
     #     images_folder="dataset/DocVQA_Images",
-    #     output_folder="dataset/DocVQA_OCR"
     # )
