@@ -306,24 +306,15 @@ class PaddleOCRProcessor:
         try:
             # Nếu use_preprocessing, preprocess ảnh trước
             if use_preprocessing:
-                if isinstance(image_path, str):
-                    preprocessed_img = self.preprocess_image(image_path, max_size=max_size)
-                    # Lưu tạm để OCR engine có thể đọc
-                    import tempfile
-                    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
-                        preprocessed_img.save(tmp.name)
-                        ocr_input = tmp.name
-                else:
-                    # Nếu đã là PIL Image
-                    import tempfile
-                    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
-                        image_path.save(tmp.name)
-                        ocr_input = tmp.name
+                preprocessed_img = self.preprocess_image(image_path, max_size=max_size)
+                # Lưu tạm để OCR engine có thể đọc
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                    preprocessed_img.save(tmp.name)
+                    ocr_input = tmp.name
             else:
                 ocr_input = image_path if isinstance(image_path, str) else image_path
-            
             out = self.ocr_engine.predict(ocr_input)
-            
             if not out:
                 return self._empty_result("Không có output từ predict()")
             
@@ -361,7 +352,6 @@ class PaddleOCRProcessor:
                 return self._empty_result("Không phát hiện văn bản")
             
             avg_conf = sum(d["confidence"] for d in details) / len(details) if details else 0.0
-            
             return {
                 "text": " ".join(lines),
                 "lines": lines,
@@ -421,7 +411,6 @@ class PaddleOCRProcessor:
         except Exception as e:
             print(f"Layout analysis error: {e}")
             ocr_result['layout'] = None
-        
         return ocr_result
     
     def draw_bounding_boxes(
@@ -571,5 +560,4 @@ if __name__ == "__main__":
     # Xử lý batch cho DocVQA
     # processor.process_docvqa_images(
     #     images_folder="dataset/DocVQA_Images",
-    #     output_folder="dataset/DocVQA_OCR"
     # )

@@ -54,8 +54,7 @@ class FullPipelineProcessor:
             image_id = Path(image_path).stem
             
             # 2. Run OCR with layout
-            ocr_result = self.ocr_processor.run_ocr_with_layout(image, use_preprocessing=True)
-            
+            ocr_result = self.ocr_processor.run_ocr_with_layout(image_path, use_preprocessing=True)
             if not ocr_result.get('success', False):
                 return {
                     'success': False,
