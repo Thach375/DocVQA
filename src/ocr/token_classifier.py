@@ -15,6 +15,14 @@ class TokenClassifier:
     """Classifier để gán nhãn semantic cho OCR tokens."""
     
     def __init__(self):
+        # Time patterns (THÊM MỚI - để tránh nhầm với form fields)
+        self.time_patterns = [
+            r'\d{1,2}:\d{2}\s*[aApP]\.?[mM]\.?',  # 8:30 a.m, 12:00 PM, 3:45pm
+            r'\d{1,2}:\d{2}:\d{2}\s*[aApP]\.?[mM]\.?',  # 8:30:15 a.m
+            r'\d{1,2}:\d{2}',  # 14:30, 08:45 (24-hour format or short form)
+            r'\d{1,2}:\d{2}:\d{2}',  # 14:30:45
+        ]
+        
         # Date patterns (nhiều format)
         self.date_patterns = [
             r'\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4}',  # DD/MM/YYYY, DD-MM-YY
@@ -67,6 +75,10 @@ class TokenClassifier:
         if not text:
             return 'empty'
         
+        # QUAN TRỌNG: Check time TRƯỚC để tránh nhầm "8:30" thành form_key
+        if self._is_time(text):
+            return 'time'
+        
         # Check date
         if self._is_date(text):
             return 'date'
@@ -85,6 +97,13 @@ class TokenClassifier:
         
         # Default
         return 'text'
+    
+    def _is_time(self, text: str) -> bool:
+        """Check if text is a time (THÊM MỚI)."""
+        for pattern in self.time_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                return True
+        return False
     
     def _is_date(self, text: str) -> bool:
         """Check if text is a date."""

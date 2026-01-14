@@ -75,6 +75,21 @@ def extract_form_fields(text: str) -> List[Tuple[str, str]]:
     """
     fields = []
     
+    # Time patterns để EXCLUDE (THÊM MỚI - tránh nhầm time với form)
+    time_patterns = [
+        re.compile(r'\d{1,2}:\d{2}\s*[aApP]\.?[mM]\.?'),  # 8:30 a.m, 12:00 PM
+        re.compile(r'\d{1,2}:\d{2}:\d{2}\s*[aApP]\.?[mM]\.?'),  # 8:30:15 a.m
+        re.compile(r'^\d{1,2}:\d{2}$'),  # 14:30, 08:45
+        re.compile(r'^\d{1,2}:\d{2}:\d{2}$'),  # 14:30:45
+    ]
+    
+    def is_time_value(s: str) -> bool:
+        """Kiểm tra xem string có phải time không."""
+        for pattern in time_patterns:
+            if pattern.search(s):
+                return True
+        return False
+    
     # Sentence starters to filter out (these are unlikely to be form keys)
     sentence_starters = {'this', 'that', 'the', 'it', 'there', 'here', 
                          'what', 'when', 'where', 'which', 'who', 'how',
@@ -104,6 +119,10 @@ def extract_form_fields(text: str) -> List[Tuple[str, str]]:
         if not line or ':' not in line:
             continue
         
+        # QUAN TRỌNG: Bỏ qua nếu line là time pattern
+        if is_time_value(line):
+            continue
+        
         # Find all colon positions
         colon_indices = [i for i, c in enumerate(line) if c == ':']
         
@@ -112,7 +131,9 @@ def extract_form_fields(text: str) -> List[Tuple[str, str]]:
             parts = line.split(':', 1)
             key = parts[0].strip()
             value = parts[1].strip() if len(parts) > 1 else ''
-            if is_valid_key(key) and value:
+            
+            # Kiểm tra key không phải là time
+            if is_valid_key(key) and value and not is_time_value(key):
                 fields.append((key, value))
         else:
             # Multiple colons: need to find key boundaries
@@ -147,7 +168,8 @@ def extract_form_fields(text: str) -> List[Tuple[str, str]]:
                 
                 key = text_segment[key_start_in_segment:].strip()
                 
-                if is_valid_key(key):
+                # QUAN TRỌNG: Kiểm tra key không phải là time
+                if is_valid_key(key) and not is_time_value(key):
                     extracted.append((colon_pos, key, prev_value_end + key_start_in_segment))
                     # Update prev_value_end to after this colon
                     prev_value_end = colon_pos + 1
@@ -163,7 +185,8 @@ def extract_form_fields(text: str) -> List[Tuple[str, str]]:
                     value_end = len(line)
                 
                 value = line[value_start:value_end].strip()
-                if value:
+                # Kiểm tra value không phải là time
+                if value and not is_time_value(value):
                     fields.append((key, value))
     
     return fields
@@ -198,23 +221,86 @@ def gen_form_kv_qas(node: Dict[str, Any], max_qas: int = 5) -> List[Dict[str, An
     return qas
 
 def _split_row(row: str) -> List[str]:
+    """
+    Tách một row thành cells.
+    CÁCH TIẾP CẬN MỚI: Linh hoạt hơn với nhiều format khác nhau.
+    """
     row = row.strip().strip("|")
+    
+    # Priority 1: Pipe separator
     if "|" in row:
         cells = [c.strip() for c in row.split("|")]
         return [c for c in cells if c]
+    
+    # Priority 2: Tab separator
     if "\t" in row:
         cells = [c.strip() for c in row.split("\t")]
         return [c for c in cells if c]
-    # split on 2+ spaces
-    cells = [c.strip() for c in re.split(r"\s{2,}", row)]
-    return [c for c in cells if c]
+    
+    # Priority 3: Multiple spaces (2+ spaces)
+    # CÁCH MỚI: Thử với 2 spaces, nếu không được thử 3 spaces
+    if "  " in row:  # At least 2 spaces
+        # Thử split với 2+ spaces
+        cells = [c.strip() for c in re.split(r"\s{2,}", row)]
+        cells = [c for c in cells if c]
+        if len(cells) >= 2:
+            return cells
+        
+        # Thử split với 3+ spaces nếu 2+ không cho kết quả tốt
+        cells = [c.strip() for c in re.split(r"\s{3,}", row)]
+        cells = [c for c in cells if c]
+        if len(cells) >= 2:
+            return cells
+    
+    # Fallback: Nếu không có separator rõ ràng, thử phát hiện columns dựa trên position
+    # Xem xét các từ riêng lẻ cách nhau bởi single space
+    # Nhưng chỉ split nếu có ít nhất 2 groups rõ ràng
+    words = row.split()
+    if len(words) >= 2:
+        # Cố gắng group các từ liền kề
+        # Heuristic: Nếu có số ở đầu hoặc cuối, tách riêng
+        if len(words) >= 3:
+            # Thử tách: [first word(s)] [middle] [last word(s)]
+            # Pattern: Description + Value format
+            if words[-1].replace(',', '').replace('.', '').isdigit() or \
+               any(char.isdigit() for char in words[-1]):
+                # Last word có số → có thể là value column
+                desc = ' '.join(words[:-1])
+                val = words[-1]
+                return [desc, val]
+    
+    # Default: Return as single cell
+    return [row] if row else []
 
 def parse_table_text(table_text: str) -> List[List[str]]:
+    """
+    Parse table text thành rows và cells.
+    CÁCH MỚI: Xử lý tốt hơn với bảng không có layout cố định.
+    """
     lines = [l for l in table_text.splitlines() if l.strip()]
     rows = [_split_row(l) for l in lines]
-    # keep rows with at least 2 cells
-    rows = [r for r in rows if len(r) >= 2]
-    return rows
+    
+    # CÁCH MỚI: Chuẩn hóa số cột
+    # Tìm số cột phổ biến nhất
+    col_counts = [len(r) for r in rows if r]
+    if not col_counts:
+        return []
+    
+    from collections import Counter
+    most_common_cols = Counter(col_counts).most_common(1)[0][0]
+    
+    # Lọc rows: giữ rows có số cột gần với most_common (±1)
+    # HOẶC rows có ít nhất 2 cells
+    normalized_rows = []
+    for r in rows:
+        if len(r) >= 2:
+            # Nếu row có quá nhiều/ít cột so với expected, thử merge/split
+            if abs(len(r) - most_common_cols) <= 1:
+                normalized_rows.append(r)
+            elif len(r) >= 2:  # Vẫn chấp nhận nếu có ít nhất 2 cells
+                normalized_rows.append(r)
+    
+    return normalized_rows
 
 def gen_table_qas(node: Dict[str, Any], max_qas: int = 5) -> List[Dict[str, Any]]:
     nid = node["node_id"]

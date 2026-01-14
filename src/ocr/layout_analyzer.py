@@ -149,11 +149,31 @@ class DocumentLayoutAnalyzer:
         # Key thường ngắn (< 50 chars), value có thể dài hoặc ngắn
         keyvalue_pattern = re.compile(r'^([^:]{1,50}):\s*(.+)$')
         
+        # Time patterns để EXCLUDE (THÊM MỚI)
+        time_patterns = [
+            re.compile(r'\d{1,2}:\d{2}\s*[aApP]\.?[mM]\.?'),  # 8:30 a.m, 12:00 PM
+            re.compile(r'\d{1,2}:\d{2}:\d{2}\s*[aApP]\.?[mM]\.?'),  # 8:30:15 a.m
+            re.compile(r'^\d{1,2}:\d{2}$'),  # 14:30, 08:45
+            re.compile(r'^\d{1,2}:\d{2}:\d{2}$'),  # 14:30:45
+        ]
+        
+        def is_time_value(text: str) -> bool:
+            """Kiểm tra xem text có phải là time không."""
+            for pattern in time_patterns:
+                if pattern.search(text):
+                    return True
+            return False
+        
         keyvalue_lines = []
         key_lengths = []
         
         for line in lines:
             text = line.get('text', '').strip()
+            
+            # QUAN TRỌNG: Bỏ qua nếu là time pattern
+            if is_time_value(text):
+                continue
+            
             match = keyvalue_pattern.match(text)
             
             if match:
@@ -161,7 +181,8 @@ class DocumentLayoutAnalyzer:
                 value = match.group(2).strip()
                 
                 # Filter: key không quá dài, value có nội dung
-                if len(key) > 0 and len(key) < 50 and len(value) > 0:
+                # VÀ key không phải là time
+                if len(key) > 0 and len(key) < 50 and len(value) > 0 and not is_time_value(key):
                     keyvalue_lines.append(text)
                     key_lengths.append(len(key))
         
@@ -295,6 +316,19 @@ class DocumentLayoutAnalyzer:
         """
         text = line.get('text', '').strip()
         
+        # Time patterns để EXCLUDE (THÊM MỚI)
+        time_patterns = [
+            r'\d{1,2}:\d{2}\s*[aApP]\.?[mM]\.?',  # 8:30 a.m, 12:00 PM
+            r'\d{1,2}:\d{2}:\d{2}\s*[aApP]\.?[mM]\.?',  # 8:30:15 a.m
+            r'^\d{1,2}:\d{2}$',  # 14:30, 08:45
+            r'^\d{1,2}:\d{2}:\d{2}$',  # 14:30:45
+        ]
+        
+        # Kiểm tra xem có phải time không
+        for time_pattern in time_patterns:
+            if re.search(time_pattern, text, re.IGNORECASE):
+                return False, None
+        
         # Pattern key: value (key ngắn, < 40 chars)
         # Match: "Name: John" nhưng không match "This is a sentence: another sentence"
         pattern = re.compile(r'^([A-Za-z][A-Za-z0-9\s\-_/\.]{0,38}):\s*(.+)$')
@@ -323,6 +357,13 @@ class DocumentLayoutAnalyzer:
         """
         text = line.get('text', '').strip()
         tokens = line.get('tokens', [])
+        
+        # Time patterns để EXCLUDE (THÊM MỚI)
+        time_pattern = re.compile(r'\d{1,2}:\d{2}(?::\d{2})?\s*(?:[aApP]\.?[mM]\.?)?')
+        
+        # Nếu text chứa time pattern, không tách
+        if time_pattern.search(text):
+            return [line]
         
         # Pattern để tìm các form field trong text
         # Tìm pattern: Word: Value (followed by another Word: or end)
@@ -555,6 +596,7 @@ class DocumentLayoutAnalyzer:
     def detect_table_region(self, block: Dict) -> Dict:
         """
         Phát hiện table region từ block.
+        CÁCH TIẾP CẬN MỚI: Linh hoạt hơn với bảng không có layout cố định.
         
         Returns:
             {
@@ -571,11 +613,13 @@ class DocumentLayoutAnalyzer:
         
         # Collect all token x_centers
         x_centers = []
-        for line in lines:
+        token_line_map = []  # Track which line each token belongs to
+        for line_idx, line in enumerate(lines):
             for tok in line['tokens']:
                 if tok['box']:
                     cx, _ = self.bbox_center(tok['box'])
                     x_centers.append(cx)
+                    token_line_map.append(line_idx)
         
         if len(x_centers) < 5:
             return {'is_table': False, 'score': 0.0}
@@ -585,7 +629,10 @@ class DocumentLayoutAnalyzer:
         for line in lines:
             all_tokens.extend(line['tokens'])
         median_char_width = self.estimate_char_width(all_tokens)
-        clustering_eps = max(30, 3 * median_char_width)  # Adaptive eps
+        
+        # CÁCH TIẾP CẬN MỚI: Sử dụng eps lớn hơn để cluster linh hoạt hơn
+        # Với bảng không có layout cố định, các cột có thể lệch nhau
+        clustering_eps = max(50, 5 * median_char_width)  # Tăng từ 3x lên 5x
         
         # Cluster x_centers to find columns
         X = np.array(x_centers).reshape(-1, 1)
@@ -593,7 +640,7 @@ class DocumentLayoutAnalyzer:
         labels = clustering.labels_
         num_cols_est = len(set(labels)) - (1 if -1 in labels else 0)
         
-        # Calculate col_stability: % of lines where tokens align with column clusters
+        # Calculate col_centers cho mỗi cluster
         col_centers = []
         for label in set(labels):
             if label != -1:
@@ -602,8 +649,20 @@ class DocumentLayoutAnalyzer:
         
         col_centers = sorted(col_centers)
         
-        # Tính token alignment threshold dựa trên char width
-        alignment_threshold = max(30, 3 * median_char_width)
+        # TIÊU CHÍ MỚI 1: Đếm số token trên mỗi line (consistent token count = table-like)
+        tokens_per_line = [len(line['tokens']) for line in lines if line['tokens']]
+        avg_tokens_per_line = np.mean(tokens_per_line) if tokens_per_line else 0
+        tokens_per_line_var = np.std(tokens_per_line) / max(avg_tokens_per_line, 1) if tokens_per_line else 1.0
+        
+        # Table thường có số tokens/line tương đối đều (low variance)
+        token_consistency = max(0, 1.0 - tokens_per_line_var)
+        
+        # TIÊU CHÍ MỚI 2: Kiểm tra xem có nhiều line với >= 2 tokens không
+        multi_token_lines = sum(1 for count in tokens_per_line if count >= 2)
+        multi_token_ratio = multi_token_lines / len(lines) if lines else 0
+        
+        # Tính token alignment threshold dựa trên char width (NỚI LỎNG)
+        alignment_threshold = max(50, 5 * median_char_width)  # Tăng từ 3x lên 5x
         
         aligned_lines = 0
         for line in lines:
@@ -617,7 +676,8 @@ class DocumentLayoutAnalyzer:
                         if closest_dist < alignment_threshold:
                             token_cols.append(True)
             
-            if len(token_cols) >= 2:  # At least 2 tokens aligned
+            # NỚI LỎNG: Chỉ cần ít nhất 1 token aligned (thay vì 2)
+            if len(token_cols) >= 1:
                 aligned_lines += 1
         
         col_stability = aligned_lines / len(lines) if lines else 0.0
@@ -630,16 +690,38 @@ class DocumentLayoutAnalyzer:
         else:
             row_spacing_var = 1.0
         
-        # Table score
-        is_table = (num_cols_est >= 3 and col_stability >= 0.6 and row_spacing_var < 0.3)
-        score = (num_cols_est / 10.0) * col_stability * (1 - row_spacing_var)
+        # LOGIC MỚI: Table score kết hợp nhiều tiêu chí
+        # 1. Có ít nhất 2 cột (giảm từ 3)
+        # 2. Token consistency cao (số token/line tương đối đều)
+        # 3. Multi-token ratio cao (nhiều line có >= 2 tokens)
+        # 4. Row spacing đều (low variance)
+        
+        is_table = (
+            num_cols_est >= 2 and  # Giảm từ 3 xuống 2 để bắt bảng 2 cột
+            (
+                (col_stability >= 0.5 and row_spacing_var < 0.4) or  # NỚI LỎNG: 0.6→0.5, 0.3→0.4
+                (token_consistency >= 0.6 and multi_token_ratio >= 0.6) or  # Token pattern đều
+                (num_cols_est >= 3 and col_stability >= 0.4)  # Nhiều cột thì NỚI LỎNG hơn
+            )
+        )
+        
+        # Score mới: kết hợp các yếu tố
+        score = (
+            (num_cols_est / 10.0) * 0.3 +  # Số cột
+            col_stability * 0.25 +  # Column alignment
+            token_consistency * 0.2 +  # Token count consistency
+            multi_token_ratio * 0.15 +  # Multi-token lines ratio
+            (1 - min(1.0, row_spacing_var)) * 0.1  # Row spacing uniformity
+        )
         
         return {
             'is_table': is_table,
             'score': score,
             'num_cols': num_cols_est,
             'col_stability': col_stability,
-            'row_spacing_var': row_spacing_var
+            'row_spacing_var': row_spacing_var,
+            'token_consistency': token_consistency,  # THÊM MỚI
+            'multi_token_ratio': multi_token_ratio  # THÊM MỚI
         }
     
     def detect_form_region(self, block: Dict) -> Dict:
