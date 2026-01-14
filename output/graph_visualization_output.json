@@ -1,0 +1,676 @@
+{
+  "version": "1.0.0",
+  "created_at": "2026-01-13T12:29:59.340952",
+  "nodes": [
+    {
+      "node_id": 0,
+      "region_type": "form",
+      "bbox": [
+        [
+          38,
+          182
+        ],
+        [
+          523,
+          182
+        ],
+        [
+          523,
+          290
+        ],
+        [
+          38,
+          290
+        ]
+      ],
+      "score": 1.0,
+      "text": "Priority: Normal TO: Bob Bexon SubjeCt: NADIR RESEARCH"
+    },
+    {
+      "node_id": 1,
+      "region_type": "text",
+      "bbox": [
+        [
+          137,
+          424
+        ],
+        [
+          1487,
+          424
+        ],
+        [
+          1487,
+          537
+        ],
+        [
+          137,
+          537
+        ]
+      ],
+      "score": 1.0,
+      "text": "We were able to conduct NADIR research in Minneapolis on Tues PM. Unfortunately, we had to postpone our LA research until 2/7-2/8. The following is a quick update & summary of next steps:"
+    },
+    {
+      "node_id": 2,
+      "region_type": "text",
+      "bbox": [
+        [
+          132,
+          571
+        ],
+        [
+          1472,
+          571
+        ],
+        [
+          1472,
+          755
+        ],
+        [
+          132,
+          755
+        ]
+      ],
+      "score": 0.7468349144620281,
+      "text": "The Minneapolis groups consisted of 6 groups: UL smokers 21-40, UL Smokers 4O-55, Free Standing UL & Lts Smokers, UL & Lts line extension smokers, UL & Lts smokers 21-40, Menthol smokers (incl FF). Fo"
+    },
+    {
+      "node_id": 3,
+      "region_type": "form",
+      "bbox": [
+        [
+          132,
+          571
+        ],
+        [
+          1472,
+          571
+        ],
+        [
+          1472,
+          755
+        ],
+        [
+          132,
+          755
+        ]
+      ],
+      "score": 0.2560337251560671,
+      "text": "The Minneapolis groups consisted of 6 groups: UL smokers 21-40, UL Smokers 4O-55, Free Standing UL & Lts Smokers, UL & Lts line extension smokers, UL & Lts smokers 21-40, Menthol smokers (incl FF). Fo"
+    },
+    {
+      "node_id": 4,
+      "region_type": "text",
+      "bbox": [
+        [
+          130,
+          863
+        ],
+        [
+          1493,
+          863
+        ],
+        [
+          1493,
+          1305
+        ],
+        [
+          130,
+          1305
+        ]
+      ],
+      "score": 1.0,
+      "text": "All goups were interested in the concept although the younger smokers (21-40) were more receptive than those 40-55. I would also say that the Lts smokers were more interested than the UL smokers. This"
+    },
+    {
+      "node_id": 5,
+      "region_type": "text",
+      "bbox": [
+        [
+          128,
+          1341
+        ],
+        [
+          1491,
+          1341
+        ],
+        [
+          1491,
+          1606
+        ],
+        [
+          128,
+          1606
+        ]
+      ],
+      "score": 0.7494121378959899,
+      "text": "All of B&W's trademarks tested badly in all six groups. In all cases, the groups felt that the proposition belonged on a new mark and 2-3 were consistently selected from the list: Santa Fe, Vancouver "
+    },
+    {
+      "node_id": 6,
+      "region_type": "form",
+      "bbox": [
+        [
+          128,
+          1341
+        ],
+        [
+          1491,
+          1341
+        ],
+        [
+          1491,
+          1606
+        ],
+        [
+          128,
+          1606
+        ]
+      ],
+      "score": 0.22727100820122395,
+      "text": "All of B&W's trademarks tested badly in all six groups. In all cases, the groups felt that the proposition belonged on a new mark and 2-3 were consistently selected from the list: Santa Fe, Vancouver "
+    },
+    {
+      "node_id": 7,
+      "region_type": "text",
+      "bbox": [
+        [
+          126,
+          1638
+        ],
+        [
+          1490,
+          1638
+        ],
+        [
+          1490,
+          1753
+        ],
+        [
+          126,
+          1753
+        ]
+      ],
+      "score": 0.7231506849315068,
+      "text": "Carlton/Tareyton - these are terrible cigarettes so their all natural offerings must taste terrible too. These marks reinforced the concern."
+    },
+    {
+      "node_id": 8,
+      "region_type": "text",
+      "bbox": [
+        [
+          125,
+          1788
+        ],
+        [
+          1447,
+          1788
+        ],
+        [
+          1447,
+          1868
+        ],
+        [
+          125,
+          1868
+        ]
+      ],
+      "score": 1.0,
+      "text": "Gpc - anything they do is a cost savings so they must be taking out the additives to save money. What will they cut out next?"
+    },
+    {
+      "node_id": 9,
+      "region_type": "text",
+      "bbox": [
+        [
+          126,
+          1902
+        ],
+        [
+          1466,
+          1902
+        ],
+        [
+          1466,
+          2014
+        ],
+        [
+          126,
+          2014
+        ]
+      ],
+      "score": 1.0,
+      "text": "KOoL - the mark stands for Menthol, none of the groups could get around that..they really wanted a mark that made sense with the propositon. Natural menthol had little meaning."
+    }
+  ],
+  "edges": [
+    {
+      "source": 0,
+      "target": 1,
+      "relation": "above",
+      "score": 0.7703257731958763,
+      "category": "spatial"
+    },
+    {
+      "source": 0,
+      "target": 2,
+      "relation": "above",
+      "score": 0.6589113402061856,
+      "category": "spatial"
+    },
+    {
+      "source": 0,
+      "target": 3,
+      "relation": "above",
+      "score": 0.6589113402061856,
+      "category": "spatial"
+    },
+    {
+      "source": 0,
+      "target": 8,
+      "relation": "above",
+      "score": 0.4923711340206185,
+      "category": "spatial"
+    },
+    {
+      "source": 0,
+      "target": 7,
+      "relation": "above",
+      "score": 0.49113402061855665,
+      "category": "spatial"
+    },
+    {
+      "source": 1,
+      "target": 2,
+      "relation": "above",
+      "score": 0.9705611940298507,
+      "category": "spatial"
+    },
+    {
+      "source": 1,
+      "target": 3,
+      "relation": "above",
+      "score": 0.9705611940298507,
+      "category": "spatial"
+    },
+    {
+      "source": 1,
+      "target": 0,
+      "relation": "below",
+      "score": 0.7703257731958763,
+      "category": "spatial"
+    },
+    {
+      "source": 1,
+      "target": 4,
+      "relation": "above",
+      "score": 0.7392,
+      "category": "spatial"
+    },
+    {
+      "source": 1,
+      "target": 5,
+      "relation": "above",
+      "score": 0.6,
+      "category": "spatial"
+    },
+    {
+      "source": 2,
+      "target": 3,
+      "relation": "nearest_neighbor",
+      "score": 1.0,
+      "category": "proximity"
+    },
+    {
+      "source": 2,
+      "target": 1,
+      "relation": "below",
+      "score": 0.9705611940298507,
+      "category": "spatial"
+    },
+    {
+      "source": 2,
+      "target": 4,
+      "relation": "above",
+      "score": 0.9136,
+      "category": "spatial"
+    },
+    {
+      "source": 2,
+      "target": 0,
+      "relation": "below",
+      "score": 0.6589113402061856,
+      "category": "spatial"
+    },
+    {
+      "source": 2,
+      "target": 5,
+      "relation": "above",
+      "score": 0.6,
+      "category": "spatial"
+    },
+    {
+      "source": 3,
+      "target": 2,
+      "relation": "nearest_neighbor",
+      "score": 1.0,
+      "category": "proximity"
+    },
+    {
+      "source": 3,
+      "target": 1,
+      "relation": "below",
+      "score": 0.9705611940298507,
+      "category": "spatial"
+    },
+    {
+      "source": 3,
+      "target": 4,
+      "relation": "above",
+      "score": 0.9136,
+      "category": "spatial"
+    },
+    {
+      "source": 3,
+      "target": 0,
+      "relation": "below",
+      "score": 0.6589113402061856,
+      "category": "spatial"
+    },
+    {
+      "source": 3,
+      "target": 5,
+      "relation": "above",
+      "score": 0.6,
+      "category": "spatial"
+    },
+    {
+      "source": 4,
+      "target": 5,
+      "relation": "above",
+      "score": 0.9703195891415994,
+      "category": "spatial"
+    },
+    {
+      "source": 4,
+      "target": 6,
+      "relation": "above",
+      "score": 0.9703195891415994,
+      "category": "spatial"
+    },
+    {
+      "source": 4,
+      "target": 2,
+      "relation": "below",
+      "score": 0.9136,
+      "category": "spatial"
+    },
+    {
+      "source": 4,
+      "target": 3,
+      "relation": "below",
+      "score": 0.9136,
+      "category": "spatial"
+    },
+    {
+      "source": 4,
+      "target": 1,
+      "relation": "below",
+      "score": 0.7392,
+      "category": "spatial"
+    },
+    {
+      "source": 5,
+      "target": 6,
+      "relation": "nearest_neighbor",
+      "score": 1.0,
+      "category": "proximity"
+    },
+    {
+      "source": 5,
+      "target": 7,
+      "relation": "above",
+      "score": 0.9739597945707996,
+      "category": "spatial"
+    },
+    {
+      "source": 5,
+      "target": 4,
+      "relation": "below",
+      "score": 0.9703195891415994,
+      "category": "spatial"
+    },
+    {
+      "source": 5,
+      "target": 8,
+      "relation": "above",
+      "score": 0.8530384266263238,
+      "category": "spatial"
+    },
+    {
+      "source": 5,
+      "target": 9,
+      "relation": "above",
+      "score": 0.7623044776119403,
+      "category": "spatial"
+    },
+    {
+      "source": 6,
+      "target": 5,
+      "relation": "nearest_neighbor",
+      "score": 1.0,
+      "category": "proximity"
+    },
+    {
+      "source": 6,
+      "target": 7,
+      "relation": "above",
+      "score": 0.9739597945707996,
+      "category": "spatial"
+    },
+    {
+      "source": 6,
+      "target": 4,
+      "relation": "below",
+      "score": 0.9703195891415994,
+      "category": "spatial"
+    },
+    {
+      "source": 6,
+      "target": 8,
+      "relation": "above",
+      "score": 0.8530384266263238,
+      "category": "spatial"
+    },
+    {
+      "source": 6,
+      "target": 9,
+      "relation": "above",
+      "score": 0.7623044776119403,
+      "category": "spatial"
+    },
+    {
+      "source": 7,
+      "target": 5,
+      "relation": "below",
+      "score": 0.9739597945707996,
+      "category": "spatial"
+    },
+    {
+      "source": 7,
+      "target": 6,
+      "relation": "below",
+      "score": 0.9739597945707996,
+      "category": "spatial"
+    },
+    {
+      "source": 7,
+      "target": 8,
+      "relation": "above",
+      "score": 0.9715461422087746,
+      "category": "spatial"
+    },
+    {
+      "source": 7,
+      "target": 9,
+      "relation": "above",
+      "score": 0.8808,
+      "category": "spatial"
+    },
+    {
+      "source": 7,
+      "target": 4,
+      "relation": "below",
+      "score": 0.7322793837123991,
+      "category": "spatial"
+    },
+    {
+      "source": 8,
+      "target": 9,
+      "relation": "above",
+      "score": 0.9723461422087746,
+      "category": "spatial"
+    },
+    {
+      "source": 8,
+      "target": 7,
+      "relation": "below",
+      "score": 0.9715461422087746,
+      "category": "spatial"
+    },
+    {
+      "source": 8,
+      "target": 5,
+      "relation": "below",
+      "score": 0.8530384266263238,
+      "category": "spatial"
+    },
+    {
+      "source": 8,
+      "target": 6,
+      "relation": "below",
+      "score": 0.8530384266263238,
+      "category": "spatial"
+    },
+    {
+      "source": 8,
+      "target": 4,
+      "relation": "below",
+      "score": 0.6113307110438729,
+      "category": "spatial"
+    },
+    {
+      "source": 9,
+      "target": 8,
+      "relation": "below",
+      "score": 0.9723461422087746,
+      "category": "spatial"
+    },
+    {
+      "source": 9,
+      "target": 7,
+      "relation": "below",
+      "score": 0.8808,
+      "category": "spatial"
+    },
+    {
+      "source": 9,
+      "target": 5,
+      "relation": "below",
+      "score": 0.7623044776119403,
+      "category": "spatial"
+    },
+    {
+      "source": 9,
+      "target": 6,
+      "relation": "below",
+      "score": 0.7623044776119403,
+      "category": "spatial"
+    },
+    {
+      "source": 9,
+      "target": 4,
+      "relation": "below",
+      "score": 0.5982089552238805,
+      "category": "spatial"
+    }
+  ],
+  "adjacency": {
+    "0": [
+      1,
+      2,
+      3,
+      8,
+      7
+    ],
+    "1": [
+      2,
+      3,
+      0,
+      4,
+      5
+    ],
+    "2": [
+      3,
+      1,
+      4,
+      0,
+      5
+    ],
+    "3": [
+      2,
+      1,
+      4,
+      0,
+      5
+    ],
+    "4": [
+      5,
+      6,
+      2,
+      3,
+      1
+    ],
+    "5": [
+      6,
+      7,
+      4,
+      8,
+      9
+    ],
+    "6": [
+      5,
+      7,
+      4,
+      8,
+      9
+    ],
+    "7": [
+      5,
+      6,
+      8,
+      9,
+      4
+    ],
+    "8": [
+      9,
+      7,
+      5,
+      6,
+      4
+    ],
+    "9": [
+      8,
+      7,
+      5,
+      6,
+      4
+    ]
+  },
+  "metadata": {
+    "source_image": "250.png",
+    "num_regions": 10,
+    "num_nodes": 10,
+    "num_edges": 50
+  }
+}
